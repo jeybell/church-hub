@@ -1,36 +1,158 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# church-hub
 
-## Getting Started
+교회 행사 자료 아카이브. 행사 계획서·사진·회계·후기를 행사 단위로 모아두고 나중에 찾을 수 있게 한다.
 
-First, run the development server:
+## 배경
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+행사 자료를 카톡으로만 공유하다 보니 시간이 지나면 찾을 수 없다. 카톡은 시간순 스트림이라 몇 달만 지나도 검색이 불가능하다.
+
+해결하려는 문제는 두 가지다.
+
+1. **찾을 수가 없다** — 지난 행사 자료가 어디 있는지 아무도 모른다
+2. **올릴 이유가 없다** — 행사가 끝나면 정리할 동기가 없다
+
+2번을 해결하지 못하면 앱을 만들어도 빈 껍데기가 된다. 그래서 기능 목록보다 **업로드 마찰을 얼마나 줄이느냐**가 설계의 중심이다.
+
+가장 중요한 사용 시나리오는 보관이 아니라 재활용이다. **"작년 부활절 어떻게 했더라"** 를 5초 안에 꺼내는 것.
+
+## 아키텍처
+
+```
+교인 --카카오 로그인--> [Next.js 앱] --교회 구글계정 토큰--> [구글 드라이브]
+                          |
+                    서버가 대표 계정 권한을 대신 행사
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+핵심 결정 세 가지.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+**파일 실체는 구글 드라이브에 둔다.** 용량 부담이 없고, 앱이 사라지거나 담당자가 바뀌어도 자료는 사람이 읽을 수 있는 형태로 남는다. 담당자가 매년 바뀌는 조직에서 이게 결정적이다.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+**교인은 구글 계정이 필요 없다.** 교회 대표 구글 계정의 refresh token을 서버에만 보관하고, 업로드·조회를 전부 서버가 대행한다. 드라이브 폴더는 비공개로 유지되고 접근 판단은 앱이 한다. 지금은 전체 열람이지만 나중에 부서별 제한을 걸 수 있는 이유가 이 구조 덕분이다.
 
-## Learn More
+**앱은 드라이브를 대체하지 않는다.** 앱은 인덱스·검색·업로드 창구이고, 드라이브를 직접 열어도 자료를 찾을 수 있어야 한다.
 
-To learn more about Next.js, take a look at the following resources:
+## 기술 스택
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| 영역 | 선택 |
+|---|---|
+| 프레임워크 | Next.js (App Router) + TypeScript |
+| 스타일 | Tailwind, 모바일 우선 |
+| 로그인 | Auth.js (NextAuth) + Kakao Provider |
+| 저장소 | Google Drive API (`drive.file` scope) |
+| DB | 없음 (POC) → Supabase Postgres (MVP) |
+| 배포 | Vercel |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+카톡 인앱 브라우저에서 열리는 것이 전제라 모바일 우선으로 만든다.
 
-## Deploy on Vercel
+## 알려진 지뢰
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+이걸 모르고 시작하면 각각 반나절씩 날아간다.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### 1. 구글 OAuth 스코프는 반드시 `drive.file`
+
+`drive` 전체 스코프는 제한 범위(restricted scope)라 앱 검증 심사와 보안 평가 비용이 붙는다. `drive.file`은 비민감 범위라 심사가 없다.
+
+대신 **앱이 직접 만든 파일·폴더만 접근 가능**하다. 사람이 드라이브에서 손으로 넣은 파일은 앱에서 보이지 않는다.
+
+> **규칙: 업로드는 반드시 앱을 통해서 한다.**
+
+### 2. OAuth 동의 화면을 "프로덕션"으로 게시할 것
+
+"테스트" 상태에서는 refresh token이 7일 만에 만료된다. 일주일 뒤 갑자기 전부 죽는다. `drive.file`은 비민감 범위라 게시만 하면 되고 심사는 걸리지 않는다.
+
+### 3. Vercel 서버리스 요청 본문 제한 4.5MB
+
+요즘 폰 사진이 3~6MB라 서버를 거쳐 올리면 바로 걸린다. 서버는 **드라이브 resumable 업로드 URL만 발급하고 브라우저가 드라이브로 직접 PUT** 하는 방식으로 간다. POC에서 이걸 뚫어놔야 MVP에서 갈아엎지 않는다.
+
+### 4. 드라이브 이미지는 직접 임베드할 수 없다
+
+`thumbnailLink`는 몇 시간 뒤 만료되고 CORS도 걸린다. `/api/file/[id]` 프록시 라우트가 세션을 확인하고 스트리밍한다. 권한 검사 지점이 한 곳으로 모이는 부수 효과가 있다.
+
+## 드라이브 폴더 구조
+
+앱이 행사를 등록하면 자동 생성한다.
+
+```
+교회행사자료/
+  2026/
+    2026-04-05_부활절연합예배/
+      01_계획서/
+      02_사진/
+      03_회계/
+      04_후기/
+```
+
+날짜를 폴더명 앞에 두면 앱 없이 드라이브만 열어도 정렬이 맞는다.
+
+## 계정 구성
+
+| 역할 | 계정 | 교체 가능 여부 |
+|---|---|---|
+| Google Cloud 프로젝트 · OAuth 클라이언트 | 개발자 개인 | 교체 불필요 |
+| 카카오 개발자 앱 | 개발자 개인 | 교체 불필요 |
+| **드라이브 저장 계정** | POC: 개인 → MVP: 교회 명의 | **아래 주의** |
+
+저장 계정 교체 자체는 재인증 한 번이지만, `drive.file` 스코프 특성상 **기존에 올린 파일은 새 계정에서 보이지 않는다.** 소유권을 이전해도 마찬가지다.
+
+> **경계선: 실제 행사 자료를 처음 올리기 전에 저장 계정을 확정해야 한다.**
+> POC 데이터는 버릴 테스트 자료이므로 그 전까지는 자유롭게 바꿔도 된다.
+
+## 개발 단계
+
+### POC (현재)
+
+기능을 만드는 게 아니라 **배관이 뚫리는지 확인**하는 단계. 완료 기준은 다음 다섯 개다.
+
+- [ ] 카카오로 로그인해서 세션이 유지된다
+- [ ] "행사 만들기"를 하면 드라이브에 날짜 폴더가 생긴다
+- [ ] 폰에서 사진 3장을 올리면 그 폴더에 실제로 들어간다
+- [ ] 목록 화면에서 그 사진이 썸네일로 보인다
+- [ ] **카톡방에 링크를 던져서 다른 사람 폰으로 위 과정이 재현된다**
+
+마지막 항목이 진짜 관문이다. 내 폰에서 되는 건 증명이 되지 않는다.
+
+**POC에서 만들지 않는 것:** DB, 가입 승인, 검색·태그, 삭제·수정, 디자인, 에러 처리, 부서 권한.
+
+POC 단계에서는 Supabase도 쓰지 않는다. 폴더명에 메타데이터가 들어있어 드라이브만으로 목록을 그릴 수 있고, DB 스키마를 성급하게 확정하지 않아도 된다.
+
+완료 기준을 통과하면 `poc-done` 태그를 찍고 같은 저장소에서 MVP를 이어간다. 인증·드라이브 배관·프록시 라우트는 그대로 살아남고, 다시 짜는 것은 화면 정도다.
+
+### MVP
+
+가입 승인(최초 로그인 시 `pending`, 관리자 승인), 사진 갤러리, 검색·태그 필터, **로그인 없이 사진만 올리는 업로드 전용 링크**(카톡방에 던지는 용도), 카톡 공유 미리보기 카드.
+
+### 이후
+
+지난 행사 복제해서 계획서 초안 만들기, 절기별 연도 비교, 부서별 권한 제한.
+
+## 데이터 모델 (MVP 예정)
+
+| 테이블 | 핵심 필드 |
+|---|---|
+| `events` | 제목, 날짜, 분류(절기/수련회/부서행사), 부서, 태그, 드라이브폴더ID |
+| `files` | event_id, 종류(계획서/사진/회계/후기), 드라이브파일ID, 업로더, 업로드일시 |
+| `members` | 이름, 부서, 권한(관리자/부서담당/일반) |
+
+카카오 기본 동의항목으로는 닉네임 정도만 받을 수 있으므로, 최초 진입 시 실명과 소속 부서를 직접 입력받는다.
+
+## 로컬 실행
+
+```bash
+npm install
+cp .env.example .env.local   # 값 채우기
+npm run dev
+```
+
+http://localhost:3000
+
+## 환경 변수
+
+`.env.example` 참고. 저장 계정을 바꿀 때는 `GOOGLE_REFRESH_TOKEN` 과 `DRIVE_ROOT_FOLDER_ID` 두 값만 교체하면 되고 코드는 건드리지 않는다.
+
+## 사전 준비
+
+| 대상 | 할 일 |
+|---|---|
+| 구글 | Cloud Console 프로젝트 생성 → Drive API 활성화 → OAuth 클라이언트(웹) 발급 → **동의 화면 프로덕션 게시** |
+| 카카오 | 개발자 앱 등록 → REST API 키 발급 → Redirect URI 등록 |
+| 공통 | Redirect URI에 `http://localhost:3000/...` 와 배포 도메인을 모두 등록 |
