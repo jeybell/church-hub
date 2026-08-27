@@ -135,11 +135,53 @@ POC 단계에서는 Supabase도 쓰지 않는다. 폴더명에 메타데이터�
 
 카카오 기본 동의항목으로는 닉네임 정도만 받을 수 있으므로, 최초 진입 시 실명과 소속 부서를 직접 입력받는다.
 
-## 로컬 실행
+## 셋업
+
+### 1. 구글 준비
+
+| 단계 | 내용 |
+|---|---|
+| 1 | [Cloud Console](https://console.cloud.google.com) 에서 프로젝트 생성 |
+| 2 | **API 및 서비스 → 라이브러리** → `Google Drive API` 사용 설정 |
+| 3 | **OAuth 동의 화면** → 범위에 `.../auth/drive.file` 만 추가 → **프로덕션으로 게시** |
+| 4 | **사용자 인증 정보 → OAuth 클라이언트 ID → 웹 애플리케이션** |
+| 5 | 승인된 리디렉션 URI 에 `http://localhost:3000/api/google/callback` 등록 |
+
+### 2. 카카오 준비
+
+| 단계 | 내용 |
+|---|---|
+| 1 | [Kakao Developers](https://developers.kakao.com) 에서 애플리케이션 추가 |
+| 2 | **앱 키** → REST API 키 확보 |
+| 3 | **카카오 로그인** 활성화 → Redirect URI 에 `http://localhost:3000/api/auth/callback/kakao` 등록 |
+| 4 | **보안** → Client Secret 생성 (Auth.js 가 요구한다) |
+| 5 | **동의항목** → 닉네임 필수, 프로필 사진 선택 |
+
+실명과 소속 부서는 카카오에서 받을 수 없으므로 앱에서 직접 입력받는다.
+
+### 3. 실행
 
 ```bash
 npm install
-cp .env.example .env.local   # 값 채우기
+cp .env.example .env.local
+```
+
+`.env.local` 에 구글·카카오 키를 채운 뒤,
+
+```bash
+npm run setup:drive
+```
+
+브라우저가 열리면 구글 계정으로 권한을 허용한다. 스크립트가 다음을 자동으로 처리한다.
+
+- refresh token 발급 → `GOOGLE_REFRESH_TOKEN`
+- 드라이브 최상위 폴더 생성 → `DRIVE_ROOT_FOLDER_ID`
+- `AUTH_SECRET` 이 비어 있으면 생성
+- 위 값을 `.env.local` 에 기록
+
+> 3000번 포트를 쓰므로 개발 서버를 끈 상태에서 실행한다.
+
+```bash
 npm run dev
 ```
 
@@ -147,12 +189,18 @@ http://localhost:3000
 
 ## 환경 변수
 
-`.env.example` 참고. 저장 계정을 바꿀 때는 `GOOGLE_REFRESH_TOKEN` 과 `DRIVE_ROOT_FOLDER_ID` 두 값만 교체하면 되고 코드는 건드리지 않는다.
+`.env.example` 참고.
 
-## 사전 준비
+`DRIVE_ROOT_FOLDER_ID` 는 **손으로 구할 수 없다.** `drive.file` 스코프는 앱이 만든 파일만 접근할 수 있어서, 드라이브에서 직접 만든 폴더는 앱에서 보이지 않는다. 최상위 폴더도 앱이 만들어야 하며 그 역할을 `npm run setup:drive` 가 한다.
 
-| 대상 | 할 일 |
+저장 계정을 바꿀 때는 새 계정으로 `setup:drive` 를 다시 돌리면 된다. `GOOGLE_REFRESH_TOKEN` 과 `DRIVE_ROOT_FOLDER_ID` 두 값만 갈리고 코드는 건드리지 않는다. 단, 이전 계정으로 올린 파일은 새 계정에서 보이지 않는다.
+
+## 명령어
+
+| 명령 | 설명 |
 |---|---|
-| 구글 | Cloud Console 프로젝트 생성 → Drive API 활성화 → OAuth 클라이언트(웹) 발급 → **동의 화면 프로덕션 게시** |
-| 카카오 | 개발자 앱 등록 → REST API 키 발급 → Redirect URI 등록 |
-| 공통 | Redirect URI에 `http://localhost:3000/...` 와 배포 도메인을 모두 등록 |
+| `npm run dev` | 개발 서버 |
+| `npm run setup:drive` | 구글 인증 · 최상위 폴더 생성 (1회성) |
+| `npm run typecheck` | 타입 검사 |
+| `npm run lint` | ESLint |
+| `npm run build` | 프로덕션 빌드 |
