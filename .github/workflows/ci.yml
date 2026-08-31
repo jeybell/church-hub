@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# 같은 브랜치에 새 커밋이 올라오면 이전 실행은 취소한다.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: lint · typecheck · build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: 의존성 설치
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: 타입 체크
+        run: npm run typecheck
+
+      # 드라이브 자격증명 없이 통과해야 한다.
+      # 드라이브를 쓰는 화면은 force-dynamic 이라 빌드 시점에 호출되지 않는다.
+      - name: 빌드
+        run: npm run build
