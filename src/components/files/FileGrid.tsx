@@ -15,7 +15,6 @@ export default function FileGrid({ files, selectedId, searchQuery, onSelect }: P
   const filtered = searchQuery.trim()
     ? files.filter(f =>
         f.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        f.department.toLowerCase().includes(searchQuery.toLowerCase()) ||
         f.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()))
       )
     : files
