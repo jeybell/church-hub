@@ -43,3 +43,7 @@ export function countDescendantFiles(
   }
   return count
 }
+
+export function getFolderName(folders: FolderItem[], folderId: string): string {
+  return folders.find(f => f.id === folderId)?.name ?? '알 수 없음'
+}
