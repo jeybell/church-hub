@@ -22,7 +22,10 @@ import { existsSync } from 'node:fs'
 
 const PORT = 3000
 const REDIRECT_URI = `http://localhost:${PORT}/api/google/callback`
-const SCOPE = 'https://www.googleapis.com/auth/drive.file'
+// drive.file → 앱이 만든 파일만
+// drive.readonly → 드라이브 전체 읽기
+// drive → 드라이브 전체 읽기+쓰기 (현재 설정)
+const SCOPE = 'https://www.googleapis.com/auth/drive'
 const ROOT_FOLDER_NAME = '교회행사자료'
 const ENV_PATH = '.env.local'
 const FOLDER_MIME = 'application/vnd.google-apps.folder'
