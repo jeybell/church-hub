@@ -4,7 +4,7 @@ import FileIcon from '@/components/ui/FileIcon'
 import type { FileItem } from '@/lib/types'
 import { getFileType, getFileTypeLabel, formatFileSize, formatDate } from '@/lib/file-utils'
 import { getFolderName } from '@/lib/folder-utils'
-import { MOCK_FOLDERS } from '@/lib/mock-data'
+import { useFolderCtx } from '@/lib/folder-context'
 
 type Props = {
   file: FileItem
@@ -12,6 +12,7 @@ type Props = {
 }
 
 export default function FileDetailsPanel({ file, onClose }: Props) {
+  const { folders } = useFolderCtx()
   const type = getFileType(file.mimeType)
 
   return (
@@ -46,7 +47,7 @@ export default function FileDetailsPanel({ file, onClose }: Props) {
       <div className="px-4 mt-4 flex flex-col gap-3">
         <MetaRow label="형식" value={getFileTypeLabel(type)} />
         <MetaRow label="크기" value={formatFileSize(file.size)} />
-        <MetaRow label="위치" value={getFolderName(MOCK_FOLDERS, file.folderId)} />
+        <MetaRow label="위치" value={getFolderName(folders, file.folderId)} />
         <MetaRow label="등록자" value={file.uploadedBy} />
         <MetaRow label="수정일" value={formatDate(file.updatedAt)} />
       </div>

@@ -1,15 +1,16 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { MOCK_FOLDERS } from '@/lib/mock-data'
-
-const DEPARTMENTS = MOCK_FOLDERS.filter(f => f.parentId === 'root')
+import { useFolderCtx } from '@/lib/folder-context'
+import { getChildren } from '@/lib/folder-utils'
 
 type Props = {
   onClose: () => void
 }
 
 export default function UploadDialog({ onClose }: Props) {
+  const { folders, rootId } = useFolderCtx()
+  const departments = getChildren(folders, rootId)
   const [dragging, setDragging] = useState(false)
   const [files, setFiles] = useState<File[]>([])
   const [department, setDepartment] = useState('')
@@ -107,7 +108,7 @@ export default function UploadDialog({ onClose }: Props) {
                 className="w-full h-9 px-3 text-sm border border-zinc-200 rounded-lg bg-white text-zinc-900 focus:outline-none focus:border-indigo-400 transition-colors"
               >
                 <option value="">부서 선택</option>
-                {DEPARTMENTS.map(d => (
+                {departments.map(d => (
                   <option key={d.id} value={d.id}>{d.name}</option>
                 ))}
               </select>

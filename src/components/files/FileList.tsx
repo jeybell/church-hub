@@ -4,12 +4,12 @@ import FileListItem from './FileListItem'
 import EmptyState from '@/components/ui/EmptyState'
 import type { FileItem, FolderItem } from '@/lib/types'
 import { useFolderCtx } from '@/lib/folder-context'
-import { formatDate } from '@/lib/file-utils'
 
 type Action = 'preview' | 'download' | 'favorite' | 'rename' | 'move' | 'delete'
 
 type Props = {
   folders: FolderItem[]
+  folderCounts: Record<string, number>
   files: FileItem[]
   selectedId: string | null
   searchQuery: string
@@ -17,13 +17,11 @@ type Props = {
   onAction: (file: FileItem, action: Action) => void
 }
 
-function FolderRow({ folder, subfolderCount, fileCount }: {
+function FolderRow({ folder, itemCount }: {
   folder: FolderItem
-  subfolderCount: number
-  fileCount: number
+  itemCount: number
 }) {
   const { navigate } = useFolderCtx()
-  const total = subfolderCount + fileCount
 
   return (
     <div
@@ -42,7 +40,7 @@ function FolderRow({ folder, subfolderCount, fileCount }: {
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-zinc-900 truncate">{folder.name}</p>
         <p className="text-xs text-zinc-400 mt-0.5">
-          {total === 0 ? '비어 있음' : `항목 ${total}개`}
+          {itemCount === 0 ? '비어 있음' : `항목 ${itemCount}개`}
         </p>
       </div>
 
@@ -55,8 +53,7 @@ function FolderRow({ folder, subfolderCount, fileCount }: {
   )
 }
 
-export default function FileList({ folders, files, selectedId, searchQuery, onSelect, onAction }: Props) {
-  const { navigate } = useFolderCtx()
+export default function FileList({ folders, folderCounts, files, selectedId, searchQuery, onSelect, onAction }: Props) {
 
   if (searchQuery.trim()) {
     // Search mode: flat list of matching files across all folders
@@ -88,7 +85,7 @@ export default function FileList({ folders, files, selectedId, searchQuery, onSe
       <ColumnHeader />
       {/* Folders first */}
       {folders.map(folder => (
-        <FolderRow key={folder.id} folder={folder} subfolderCount={0} fileCount={0} />
+        <FolderRow key={folder.id} folder={folder} itemCount={folderCounts[folder.id] ?? 0} />
       ))}
       {/* Then files */}
       {files.map(file => (
