@@ -42,3 +42,4 @@ next-env.d.ts
 
 # 예시 파일은 커밋한다 (실제 값 없음)
 !.env.example
+backup-*.txt
