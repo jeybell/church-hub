@@ -4,7 +4,7 @@ import FileIcon from '@/components/ui/FileIcon'
 import type { FileItem } from '@/lib/types'
 import { getFileType, formatFileSize, formatDate } from '@/lib/file-utils'
 import { getFolderName } from '@/lib/folder-utils'
-import { MOCK_FOLDERS } from '@/lib/mock-data'
+import { useFolderCtx } from '@/lib/folder-context'
 
 type Props = {
   file: FileItem
@@ -13,6 +13,7 @@ type Props = {
 }
 
 export default function FileCard({ file, selected, onClick }: Props) {
+  const { folders } = useFolderCtx()
   const type = getFileType(file.mimeType)
 
   return (
@@ -35,7 +36,7 @@ export default function FileCard({ file, selected, onClick }: Props) {
       <p className="mt-3 text-sm font-medium text-zinc-900 line-clamp-2 leading-snug">{file.name}</p>
 
       <div className="mt-2 flex items-center justify-between">
-        <span className="text-xs text-zinc-400 bg-zinc-100 px-2 py-0.5 rounded-md">{getFolderName(MOCK_FOLDERS, file.folderId)}</span>
+        <span className="text-xs text-zinc-400 bg-zinc-100 px-2 py-0.5 rounded-md">{getFolderName(folders, file.folderId)}</span>
         <span className="text-xs text-zinc-400">{formatFileSize(file.size)}</span>
       </div>
 

@@ -1,10 +1,16 @@
 import { FolderProvider } from '@/lib/folder-context'
+import { getDriveTree } from '@/lib/drive'
 import Header from '@/components/layout/Header'
 import Sidebar from '@/components/layout/Sidebar'
 
-export default function FilesLayout({ children }: { children: React.ReactNode }) {
+// 드라이브를 매 요청마다 조회한다 (빌드 시점 호출 방지).
+export const dynamic = 'force-dynamic'
+
+export default async function FilesLayout({ children }: { children: React.ReactNode }) {
+  const { tree } = await getDriveTree()
+
   return (
-    <FolderProvider>
+    <FolderProvider folders={tree?.folders ?? []} rootId={tree?.root.id ?? ''}>
       <div className="h-screen flex flex-col bg-white overflow-hidden">
         <Header />
 

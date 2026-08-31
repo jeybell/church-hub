@@ -5,11 +5,9 @@ import FileList from './FileList'
 import FileGrid from './FileGrid'
 import FileDetailsPanel from './FileDetailsPanel'
 import UploadDialog from '@/components/upload/UploadDialog'
-import SkeletonList from '@/components/ui/SkeletonList'
 import { useFolderCtx } from '@/lib/folder-context'
-import { MOCK_FOLDERS } from '@/lib/mock-data'
 import { getChildren, getFolderPath } from '@/lib/folder-utils'
-import type { FileItem, FolderItem, ViewMode } from '@/lib/types'
+import type { FileItem, ViewMode } from '@/lib/types'
 
 type Action = 'preview' | 'download' | 'favorite' | 'rename' | 'move' | 'delete'
 
@@ -18,16 +16,25 @@ type Props = {
 }
 
 export default function FileExplorer({ files }: Props) {
-  const { currentFolderId, navigate } = useFolderCtx()
+  const { folders, currentFolderId, navigate } = useFolderCtx()
   const [viewMode, setViewMode] = useState<ViewMode>('list')
   const [selectedFile, setSelectedFile] = useState<FileItem | null>(null)
   const [uploadOpen, setUploadOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
 
-  const subfolders = getChildren(MOCK_FOLDERS, currentFolderId)
+  const subfolders = getChildren(folders, currentFolderId)
   const folderFiles = files.filter(f => f.folderId === currentFolderId)
-  const breadcrumb = getFolderPath(MOCK_FOLDERS, currentFolderId)
-  const currentFolder = MOCK_FOLDERS.find(f => f.id === currentFolderId)
+  const breadcrumb = getFolderPath(folders, currentFolderId)
+  const currentFolder = folders.find(f => f.id === currentFolderId)
+
+  // 폴더 행에 표시할 직계 항목 수
+  const folderCounts = Object.fromEntries(
+    subfolders.map(folder => [
+      folder.id,
+      getChildren(folders, folder.id).length +
+        files.filter(f => f.folderId === folder.id).length,
+    ]),
+  )
 
   function handleSelect(file: FileItem) {
     setSelectedFile(prev => prev?.id === file.id ? null : file)
@@ -114,6 +121,7 @@ export default function FileExplorer({ files }: Props) {
             {viewMode === 'list' ? (
               <FileList
                 folders={subfolders}
+                folderCounts={folderCounts}
                 files={folderFiles}
                 selectedId={selectedFile?.id ?? null}
                 searchQuery={searchQuery}

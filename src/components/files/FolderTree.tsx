@@ -1,8 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { useFolderCtx } from '@/lib/folder-context'
-import { MOCK_FOLDERS } from '@/lib/mock-data'
 import { getChildren, getAncestorIds } from '@/lib/folder-utils'
 import type { FolderItem } from '@/lib/types'
 
@@ -23,6 +22,7 @@ function FolderIcon({ open, active }: { open: boolean; active: boolean }) {
 
 type NodeProps = {
   folder: FolderItem
+  folders: FolderItem[]
   depth: number
   expanded: Set<string>
   currentFolderId: string
@@ -30,8 +30,8 @@ type NodeProps = {
   onNavigate: (id: string) => void
 }
 
-function FolderNode({ folder, depth, expanded, currentFolderId, onToggle, onNavigate }: NodeProps) {
-  const children = getChildren(MOCK_FOLDERS, folder.id)
+function FolderNode({ folder, folders, depth, expanded, currentFolderId, onToggle, onNavigate }: NodeProps) {
+  const children = getChildren(folders, folder.id)
   const hasChildren = children.length > 0
   const isExpanded = expanded.has(folder.id)
   const isActive = currentFolderId === folder.id
@@ -84,6 +84,7 @@ function FolderNode({ folder, depth, expanded, currentFolderId, onToggle, onNavi
             <FolderNode
               key={child.id}
               folder={child}
+              folders={folders}
               depth={depth + 1}
               expanded={expanded}
               currentFolderId={currentFolderId}
@@ -98,32 +99,23 @@ function FolderNode({ folder, depth, expanded, currentFolderId, onToggle, onNavi
 }
 
 export default function FolderTree() {
-  const { currentFolderId, navigate } = useFolderCtx()
+  const { folders, currentFolderId, navigate } = useFolderCtx()
 
-  const [expanded, setExpanded] = useState<Set<string>>(() =>
-    getAncestorIds(MOCK_FOLDERS, currentFolderId)
-  )
+  // 사용자가 직접 펼치거나 접은 폴더만 기록한다. 현재 위치의 상위 폴더는
+  // 아래에서 자동으로 펼치므로 effect 로 상태를 따라갈 필요가 없다.
+  const [manual, setManual] = useState<Map<string, boolean>>(new Map())
 
-  // auto-expand ancestors when currentFolderId changes
-  useEffect(() => {
-    setExpanded(prev => {
-      const ancestors = getAncestorIds(MOCK_FOLDERS, currentFolderId)
-      const next = new Set(prev)
-      ancestors.forEach(id => next.add(id))
-      return next
-    })
-  }, [currentFolderId])
+  const expanded = useMemo(() => {
+    const next = new Set(getAncestorIds(folders, currentFolderId))
+    manual.forEach((open, id) => (open ? next.add(id) : next.delete(id)))
+    return next
+  }, [manual, folders, currentFolderId])
 
   function toggle(id: string) {
-    setExpanded(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
+    setManual(prev => new Map(prev).set(id, !expanded.has(id)))
   }
 
-  const roots = getChildren(MOCK_FOLDERS, null)
+  const roots = getChildren(folders, null)
 
   return (
     <div className="flex flex-col gap-0.5">
@@ -131,6 +123,7 @@ export default function FolderTree() {
         <FolderNode
           key={folder.id}
           folder={folder}
+          folders={folders}
           depth={0}
           expanded={expanded}
           currentFolderId={currentFolderId}

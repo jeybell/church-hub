@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# 같은 브랜치에 새 커밋이 올라오면 이전 실행은 취소한다.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: lint · typecheck · build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: 의존성 설치
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      # next typegen 이 라우트 타입(LayoutProps 등)을 먼저 만들어야
+      # 새로 클론한 트리에서도 tsc 가 통과한다.
+      - name: 타입 체크
+        run: npm run typecheck
+
+      # 드라이브 자격증명 없이 통과해야 한다.
+      # 드라이브를 쓰는 화면은 force-dynamic 이라 빌드 시점에 호출되지 않는다.
+      - name: 빌드
+        run: npm run build
