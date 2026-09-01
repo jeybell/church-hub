@@ -1,0 +1,48 @@
+/**
+ * Supabase PostgREST 접근 (서버 전용)
+ *
+ * service role 키를 쓰므로 클라이언트 컴포넌트에서 import 하면 안 된다.
+ * 테이블은 RLS 가 켜져 있고 정책이 없어, 공개 anon 키로는 아무것도
+ * 읽거나 쓸 수 없다. 접근 경로는 이 모듈뿐이다.
+ *
+ * 드라이브 쪽(lib/drive.ts)과 같은 방식으로 fetch 를 직접 쓴다.
+ */
+
+const URL_BASE = process.env.SUPABASE_URL
+const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+type Options = {
+  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE'
+  body?: unknown
+  /** 응답 본문을 돌려받고 싶을 때 (INSERT 결과 등) */
+  returning?: boolean
+}
+
+export async function postgrest<T>(path: string, options: Options = {}): Promise<T> {
+  if (!URL_BASE || !SERVICE_KEY) {
+    throw new Error('SUPABASE_URL 과 SUPABASE_SERVICE_ROLE_KEY 가 설정되지 않았습니다')
+  }
+
+  const headers: Record<string, string> = {
+    apikey: SERVICE_KEY,
+    Authorization: `Bearer ${SERVICE_KEY}`,
+    'Content-Type': 'application/json',
+  }
+  if (options.returning) headers.Prefer = 'return=representation'
+
+  const res = await fetch(`${URL_BASE}/rest/v1/${path}`, {
+    method: options.method ?? 'GET',
+    headers,
+    body: options.body === undefined ? undefined : JSON.stringify(options.body),
+    cache: 'no-store',
+  })
+
+  if (!res.ok) {
+    const detail = await res.text()
+    throw new Error(`데이터 조회 실패 (${res.status}): ${detail}`)
+  }
+
+  // DELETE 등 본문이 없는 응답
+  if (res.status === 204) return undefined as T
+  return (await res.json()) as T
+}
