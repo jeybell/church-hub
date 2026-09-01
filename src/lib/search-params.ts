@@ -16,7 +16,7 @@ export function withParams(
   patch: Patch,
   base: string = ARCHIVE_BASE,
 ): string {
-  const keys = ['department', 'category', 'status', 'author', 'year', 'q', 'sort', 'recent']
+  const keys = ['department', 'category', 'author', 'year', 'q', 'sort', 'recent']
   const next = new URLSearchParams()
 
   for (const key of keys) {
