@@ -1,5 +1,14 @@
 @import "tailwindcss";
 
+/*
+  프리텐다드 — 한글 본문용.
+
+  통 파일(2MB) 대신 동적 서브셋을 쓴다. unicode-range 로 쪼개져 있어서
+  화면에 실제로 나온 글자가 속한 조각만 내려받는다. 자료 제목과 부서 이름이
+  대부분 한글이라 이 차이가 크다.
+*/
+@import "pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css";
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -10,13 +19,14 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: "Pretendard Variable", system-ui, -apple-system, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  /* Geist 를 불러놓고 쓰지 않아 제목과 본문의 굵기 차이가 뭉개져 있었다. */
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-family: var(--font-sans);
+  /* 한글은 자간이 조금 좁아야 제목이 덩어리로 읽힌다. */
+  letter-spacing: -0.01em;
 }
