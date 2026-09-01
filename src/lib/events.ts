@@ -32,32 +32,55 @@ export type EventPost = {
 
 const SELECT = 'id,title,body,department,status,event_date,author,created_at,updated_at,event_files(id,drive_file_id,name,mime_type,size)'
 
+export const SORT_KEYS = ['updated', 'created', 'title'] as const
+export type SortKey = (typeof SORT_KEYS)[number]
+
+export const SORT_LABEL: Record<SortKey, string> = {
+  updated: '최근 수정',
+  created: '최근 등록',
+  title: '제목',
+}
+
+// 자료실에서 가장 자주 찾는 것은 "요즘 손댄 자료"라서 최근 수정이 기본이다.
+const ORDER_BY: Record<SortKey, string> = {
+  updated: 'updated_at.desc',
+  created: 'created_at.desc',
+  title: 'title.asc',
+}
+
+/** "최근 자료" 가 기준으로 삼을 시각. 렌더 중에 시계를 읽지 않도록 여기 둔다. */
+export function daysAgo(days: number): string {
+  return new Date(Date.now() - days * 86_400_000).toISOString()
+}
+
 export type EventFilter = {
   department?: string
   status?: EventStatus
-  /** 연도 4자리. 행사일이 그 해에 속한 글만 */
-  year?: string
-  query?: string
+  author?: string
+  /** 이 시각 이후에 수정된 글만. "최근 자료" 메뉴가 쓴다. */
+  updatedAfter?: string
+  sort?: SortKey
 }
 
-/** 목록. 행사일 최신순, 행사일이 없으면 뒤로 민다. */
+/**
+ * 목록. 정렬 기본값은 최근 수정순.
+ *
+ * DB 가 싸게 거를 수 있는 것만 여기서 거른다. 검색어·카테고리·연도는
+ * 첨부 파일이나 집계가 필요해서 조회 뒤 뷰 계층(lib/post-view.ts)이 맡는다.
+ * 특히 검색은 첨부 파일명과 태그까지 훑어야 하는데 그건 임베드된 리소스라
+ * PostgREST 의 or 절 하나로 묶을 수 없다. 절반만 DB 에서 거르면 파일명으로만
+ * 맞는 글이 아예 넘어오지 않는다.
+ */
 export async function listEvents(filter: EventFilter = {}): Promise<EventPost[]> {
   const params = new URLSearchParams({
     select: SELECT,
-    order: 'event_date.desc.nullslast,created_at.desc',
+    order: ORDER_BY[filter.sort ?? 'updated'],
   })
 
   if (filter.department) params.set('department', `eq.${filter.department}`)
   if (filter.status) params.set('status', `eq.${filter.status}`)
-  if (filter.year) {
-    params.append('event_date', `gte.${filter.year}-01-01`)
-    params.append('event_date', `lte.${filter.year}-12-31`)
-  }
-  if (filter.query) {
-    // 제목 또는 본문에 포함
-    const q = filter.query.replace(/[(),*]/g, ' ').trim()
-    if (q) params.set('or', `(title.ilike.*${q}*,body.ilike.*${q}*)`)
-  }
+  if (filter.author) params.set('author', `eq.${filter.author}`)
+  if (filter.updatedAfter) params.set('updated_at', `gte.${filter.updatedAfter}`)
 
   return postgrest<EventPost[]>(`events?${params}`)
 }
@@ -108,14 +131,3 @@ export async function updateEventStatus(id: string, status: EventStatus): Promis
   await postgrest(`events?${params}`, { method: 'PATCH', body: { status } })
 }
 
-/** 연도별 행사 수. 기록이 쌓이는 흐름을 목록 위에 보여주기 위한 값. */
-export function countByYear(events: EventPost[]): { year: string; count: number }[] {
-  const counts = new Map<string, number>()
-  for (const e of events) {
-    const year = e.event_date?.slice(0, 4) ?? e.created_at.slice(0, 4)
-    counts.set(year, (counts.get(year) ?? 0) + 1)
-  }
-  return [...counts.entries()]
-    .map(([year, count]) => ({ year, count }))
-    .sort((a, b) => b.year.localeCompare(a.year))
-}

@@ -25,7 +25,9 @@ export function formatDate(dateStr: string): string {
   const date = new Date(dateStr)
   const now = new Date()
   const diff = now.getTime() - date.getTime()
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+  // 서버와 파일 저장소의 시계가 어긋나면 미래 시각이 들어온다.
+  // 그대로 두면 "-1일 전" 같은 말이 나온다.
+  const days = Math.max(0, Math.floor(diff / (1000 * 60 * 60 * 24)))
 
   if (days === 0) return '오늘'
   if (days === 1) return '어제'
@@ -51,4 +53,20 @@ export function getFileTypeLabel(type: FileType): string {
     other: '파일',
   }
   return labels[type]
+}
+
+/** 2026.09.01 — 상세 화면처럼 "언제인지"가 정확해야 하는 자리에 쓴다. */
+export function formatFullDate(dateStr: string): string {
+  const d = new Date(dateStr)
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${d.getFullYear()}.${m}.${day}`
+}
+
+/** 2026.09.01 13:42 */
+export function formatDateTime(dateStr: string): string {
+  const d = new Date(dateStr)
+  const hh = String(d.getHours()).padStart(2, '0')
+  const mm = String(d.getMinutes()).padStart(2, '0')
+  return `${formatFullDate(dateStr)} ${hh}:${mm}`
 }

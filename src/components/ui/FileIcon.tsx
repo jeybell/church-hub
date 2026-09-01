@@ -3,6 +3,11 @@ import type { FileType } from '@/lib/types'
 type Props = {
   type: FileType
   size?: 'sm' | 'md' | 'lg'
+  /**
+   * color — 파일 탐색기. 종류가 색으로 한눈에 갈린다.
+   * muted — 자료실. 제목이 먼저 읽혀야 해서 아이콘은 회색으로 물러난다.
+   */
+  variant?: 'color' | 'muted'
 }
 
 const CONFIG: Record<FileType, { className: string; label: string }> = {
@@ -24,8 +29,9 @@ const SIZE = {
   lg: { wrap: 'w-14 h-14 rounded-lg', text: 'text-xs', svg: 24 },
 }
 
-export default function FileIcon({ type, size = 'md' }: Props) {
-  const { className, label } = CONFIG[type]
+export default function FileIcon({ type, size = 'md', variant = 'color' }: Props) {
+  const { className: colored, label } = CONFIG[type]
+  const className = variant === 'muted' ? 'bg-zinc-100 text-zinc-500' : colored
   const s = SIZE[size]
 
   if (type === 'folder') {

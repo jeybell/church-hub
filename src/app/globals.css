@@ -17,5 +17,6 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  /* Geist 를 불러놓고 쓰지 않아 제목과 본문의 굵기 차이가 뭉개져 있었다. */
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
 }

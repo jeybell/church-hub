@@ -27,6 +27,8 @@ export type FileItem = {
   starred: boolean
   tags: string[]
   description?: string
+  /** 드라이브가 매기는 리비전 번호. 이름 변경 같은 메타데이터 수정에도 오른다. */
+  version?: number
 }
 
 export type ViewMode = 'list' | 'grid'
