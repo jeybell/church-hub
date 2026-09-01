@@ -1,14 +1,5 @@
 import { postgrest } from './supabase'
 
-export const EVENT_STATUSES = ['planned', 'ongoing', 'done'] as const
-export type EventStatus = (typeof EVENT_STATUSES)[number]
-
-export const STATUS_LABEL: Record<EventStatus, string> = {
-  planned: '기획',
-  ongoing: '진행',
-  done: '종료',
-}
-
 export type EventFile = {
   id: string
   drive_file_id: string
@@ -22,7 +13,6 @@ export type EventPost = {
   title: string
   body: string
   department: string
-  status: EventStatus
   event_date: string | null
   author: string
   created_at: string
@@ -30,7 +20,11 @@ export type EventPost = {
   event_files: EventFile[]
 }
 
-const SELECT = 'id,title,body,department,status,event_date,author,created_at,updated_at,event_files(id,drive_file_id,name,mime_type,size)'
+// status 컬럼은 테이블에 남아 있지만 화면에서 쓰지 않는다. 기획/진행/종료는
+// 행사에만 맞는 구분이라 주보·회의록 같은 자료에는 의미가 없었다.
+// 컬럼에 기본값이 있어 INSERT 에서 빼도 문제가 없다.
+const SELECT =
+  'id,title,body,department,event_date,author,created_at,updated_at,event_files(id,drive_file_id,name,mime_type,size)'
 
 export const SORT_KEYS = ['updated', 'created', 'title'] as const
 export type SortKey = (typeof SORT_KEYS)[number]
@@ -55,7 +49,6 @@ export function daysAgo(days: number): string {
 
 export type EventFilter = {
   department?: string
-  status?: EventStatus
   author?: string
   /** 이 시각 이후에 수정된 글만. "최근 자료" 메뉴가 쓴다. */
   updatedAfter?: string
@@ -78,7 +71,6 @@ export async function listEvents(filter: EventFilter = {}): Promise<EventPost[]>
   })
 
   if (filter.department) params.set('department', `eq.${filter.department}`)
-  if (filter.status) params.set('status', `eq.${filter.status}`)
   if (filter.author) params.set('author', `eq.${filter.author}`)
   if (filter.updatedAfter) params.set('updated_at', `gte.${filter.updatedAfter}`)
 
@@ -91,18 +83,36 @@ export async function getEvent(id: string): Promise<EventPost | null> {
   return rows[0] ?? null
 }
 
-export type NewEvent = {
+export type AttachmentInput = {
+  drive_file_id: string
+  name: string
+  mime_type: string
+  size: number
+}
+
+export type EventInput = {
   title: string
   body: string
   department: string
-  status: EventStatus
   event_date: string | null
   author: string
-  files: { drive_file_id: string; name: string; mime_type: string; size: number }[]
+  files: AttachmentInput[]
 }
 
-/** 행사 등록. 첨부는 드라이브에 이미 있는 파일을 묶는 것이라 업로드가 없다. */
-export async function createEvent(input: NewEvent): Promise<string> {
+async function replaceFiles(eventId: string, files: AttachmentInput[]): Promise<void> {
+  const params = new URLSearchParams({ event_id: `eq.${eventId}` })
+  await postgrest(`event_files?${params}`, { method: 'DELETE' })
+
+  if (files.length > 0) {
+    await postgrest('event_files', {
+      method: 'POST',
+      body: files.map(f => ({ ...f, event_id: eventId })),
+    })
+  }
+}
+
+/** 자료 등록. 첨부는 저장소에 이미 있는 파일을 묶는 것이라 업로드가 없다. */
+export async function createEvent(input: EventInput): Promise<string> {
   const [created] = await postgrest<{ id: string }[]>('events', {
     method: 'POST',
     returning: true,
@@ -110,7 +120,6 @@ export async function createEvent(input: NewEvent): Promise<string> {
       title: input.title,
       body: input.body,
       department: input.department,
-      status: input.status,
       event_date: input.event_date,
       author: input.author,
     },
@@ -126,8 +135,32 @@ export async function createEvent(input: NewEvent): Promise<string> {
   return created.id
 }
 
-export async function updateEventStatus(id: string, status: EventStatus): Promise<void> {
+/**
+ * 자료 수정.
+ *
+ * 첨부는 지우고 다시 넣는다. 어느 것이 빠지고 더해졌는지 따지는 것보다 간단하고,
+ * 한 글에 묶이는 파일이 많아야 열몇 개라 비용도 무시할 만하다.
+ * 다만 두 번의 요청이라 중간에 끊기면 첨부만 비는 상태가 될 수 있다.
+ */
+export async function updateEvent(id: string, input: EventInput): Promise<void> {
   const params = new URLSearchParams({ id: `eq.${id}` })
-  await postgrest(`events?${params}`, { method: 'PATCH', body: { status } })
+
+  await postgrest(`events?${params}`, {
+    method: 'PATCH',
+    body: {
+      title: input.title,
+      body: input.body,
+      department: input.department,
+      event_date: input.event_date,
+      author: input.author,
+    },
+  })
+
+  await replaceFiles(id, input.files)
 }
 
+/** 자료 삭제. event_files 는 on delete cascade 로 함께 지워진다. */
+export async function deleteEvent(id: string): Promise<void> {
+  const params = new URLSearchParams({ id: `eq.${id}` })
+  await postgrest(`events?${params}`, { method: 'DELETE' })
+}

@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import StatusBadge from './StatusBadge'
 import { formatFullDate, formatDateTime } from '@/lib/file-utils'
 import { ARCHIVE_BASE } from '@/lib/search-params'
 import type { PostVM } from '@/lib/post-view'
@@ -15,29 +14,25 @@ export default function PostMeta({ post }: { post: PostVM }) {
 
   return (
     <header>
-      <div className="flex items-start justify-between gap-4">
-        <nav className="flex items-center gap-1.5 text-xs min-w-0">
-          <Link
-            href={`${ARCHIVE_BASE}?department=${encodeURIComponent(post.department)}`}
-            className="text-zinc-500 hover:text-zinc-900 transition-colors truncate"
-          >
-            {post.department}
-          </Link>
-          {post.category && (
-            <>
-              <span className="text-zinc-300">/</span>
-              <Link
-                href={`${ARCHIVE_BASE}?department=${encodeURIComponent(post.department)}&category=${encodeURIComponent(post.category)}`}
-                className="text-zinc-500 hover:text-zinc-900 transition-colors truncate"
-              >
-                {post.category}
-              </Link>
-            </>
-          )}
-        </nav>
-
-        <StatusBadge status={post.status} />
-      </div>
+      <nav className="flex items-center gap-1.5 text-xs min-w-0">
+        <Link
+          href={`${ARCHIVE_BASE}?department=${encodeURIComponent(post.department)}`}
+          className="text-zinc-500 hover:text-zinc-900 transition-colors truncate"
+        >
+          {post.department}
+        </Link>
+        {post.category && (
+          <>
+            <span className="text-zinc-300">/</span>
+            <Link
+              href={`${ARCHIVE_BASE}?department=${encodeURIComponent(post.department)}&category=${encodeURIComponent(post.category)}`}
+              className="text-zinc-500 hover:text-zinc-900 transition-colors truncate"
+            >
+              {post.category}
+            </Link>
+          </>
+        )}
+      </nav>
 
       <h1 className="mt-2 text-xl font-semibold text-zinc-900 tracking-tight leading-snug">
         {post.title}

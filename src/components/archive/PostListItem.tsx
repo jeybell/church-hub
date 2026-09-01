@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import StatusBadge from './StatusBadge'
 import { formatDate } from '@/lib/file-utils'
 import type { PostVM } from '@/lib/post-view'
 
@@ -23,11 +22,6 @@ export default function PostListItem({ post }: { post: PostVM }) {
         <span className="text-zinc-500">
           {post.department}
           {post.category && <span className="text-zinc-400"> · {post.category}</span>}
-        </span>
-
-        <span className="text-zinc-300">·</span>
-        <span className="text-zinc-400">
-          <StatusBadge status={post.status} variant="dot" />
         </span>
 
         {post.tags.slice(0, 2).map(tag => (

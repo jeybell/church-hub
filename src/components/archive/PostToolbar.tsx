@@ -21,7 +21,7 @@ export default function PostToolbar({ departments, years, count }: Props) {
   const department = params.get('department')
   const sort = (params.get('sort') ?? 'updated') as SortKey
 
-  const detailFilters = ['category', 'status', 'year'].filter(k => params.get(k))
+  const detailFilters = ['category', 'year'].filter(k => params.get(k))
   const [open, setOpen] = useState(detailFilters.length > 0)
 
   const categories = departments.find(d => d.name === department)?.categories ?? []

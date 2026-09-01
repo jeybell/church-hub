@@ -10,7 +10,7 @@
  */
 
 import type { DriveTree } from './drive'
-import type { EventPost, EventStatus } from './events'
+import type { EventPost } from './events'
 import type { FileType, FolderItem } from './types'
 import { getFileType, formatFileSize } from './file-utils'
 
@@ -20,6 +20,7 @@ export type AttachmentVM = {
   fileId: string
   name: string
   type: FileType
+  mimeType: string
   size: number
   sizeLabel: string
   /** "예배부 / 주보" — 자료가 놓인 자리 */
@@ -39,7 +40,6 @@ export type PostVM = {
   department: string
   /** 첨부가 놓인 카테고리 폴더 이름. 첨부가 없으면 비어 있다. */
   category: string | null
-  status: EventStatus
   author: string
   createdAt: string
   updatedAt: string
@@ -95,6 +95,7 @@ export function toPostVM(event: EventPost, tree: DriveTree | null): PostVM {
       fileId: f.drive_file_id,
       name: f.name,
       type: getFileType(f.mime_type),
+      mimeType: f.mime_type,
       size: f.size,
       sizeLabel: formatFileSize(f.size),
       location,
@@ -109,7 +110,6 @@ export function toPostVM(event: EventPost, tree: DriveTree | null): PostVM {
     body: event.body,
     department: event.department,
     category: deriveCategory(event, tree),
-    status: event.status,
     author: event.author,
     createdAt: event.created_at,
     updatedAt: event.updated_at,
@@ -243,4 +243,26 @@ export function toAttachmentPayload(files: PickableFile[]) {
     mime_type: f.mimeType,
     size: f.size,
   }))
+}
+
+/**
+ * 이미 글에 묶여 있는 첨부를 수정 화면의 선택 목록 형태로 되돌린다.
+ *
+ * 저장소에서 사라진 파일은 고를 수 있는 목록에 없다. 그걸 그냥 빼면 글을
+ * 수정하는 것만으로 첨부가 소리 없이 사라지므로, 글이 들고 있던 값으로 되살린다.
+ */
+export function attachmentToPickable(file: AttachmentVM): PickableFile {
+  const [department = null, category = null] = (file.location ?? '').split(' / ')
+
+  return {
+    id: file.fileId,
+    name: file.name,
+    type: file.type,
+    size: file.size,
+    sizeLabel: file.sizeLabel,
+    mimeType: file.mimeType,
+    department,
+    category,
+    location: file.location ?? '자료실',
+  }
 }

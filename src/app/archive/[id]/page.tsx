@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import PostMeta from '@/components/archive/PostMeta'
 import AttachmentList from '@/components/archive/AttachmentList'
-import PostStatusControl from '@/components/archive/PostStatusControl'
+import PostActions from '@/components/archive/PostActions'
 import { getEvent } from '@/lib/events'
 import { getDriveTree, listFileRevisions } from '@/lib/drive'
 import { toPostVM, type AttachmentVM } from '@/lib/post-view'
@@ -59,7 +59,7 @@ export default async function PostDetailPage({ params }: PageProps<'/archive/[id
 
       <AttachmentList files={attachments} />
 
-      <PostStatusControl id={post.id} status={post.status} />
+      <PostActions id={post.id} title={post.title} />
     </article>
   )
 }

@@ -2,14 +2,7 @@ import PostToolbar from '@/components/archive/PostToolbar'
 import PostList from '@/components/archive/PostList'
 import ErrorState from '@/components/ui/ErrorState'
 import { getDriveTree } from '@/lib/drive'
-import {
-  listEvents,
-  daysAgo,
-  EVENT_STATUSES,
-  SORT_KEYS,
-  type EventStatus,
-  type SortKey,
-} from '@/lib/events'
+import { listEvents, daysAgo, SORT_KEYS, type SortKey } from '@/lib/events'
 import {
   toPostVM,
   getDepartments,
@@ -24,10 +17,6 @@ export const dynamic = 'force-dynamic'
 
 const RECENT_DAYS = 30
 
-function asStatus(v: string | undefined): EventStatus | undefined {
-  return v && (EVENT_STATUSES as readonly string[]).includes(v) ? (v as EventStatus) : undefined
-}
-
 function asSort(v: string | undefined): SortKey | undefined {
   return v && (SORT_KEYS as readonly string[]).includes(v) ? (v as SortKey) : undefined
 }
@@ -39,7 +28,6 @@ export default async function ArchivePage({ searchParams }: PageProps<'/archive'
   const category = one(sp.category)
   const year = one(sp.year)
   const query = one(sp.q)?.trim() ?? ''
-  const status = asStatus(one(sp.status))
   const sort = asSort(one(sp.sort))
   const recent = one(sp.recent) === '1'
 
@@ -51,7 +39,6 @@ export default async function ArchivePage({ searchParams }: PageProps<'/archive'
   try {
     const events = await listEvents({
       department,
-      status,
       author: one(sp.author),
       sort,
       updatedAfter: recent ? daysAgo(RECENT_DAYS) : undefined,

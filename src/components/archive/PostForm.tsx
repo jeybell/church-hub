@@ -3,30 +3,50 @@
 import { useActionState, useMemo, useState } from 'react'
 import Link from 'next/link'
 import FileIcon from '@/components/ui/FileIcon'
-import { createPostAction, type FormState } from '@/app/archive/actions'
-import { EVENT_STATUSES, STATUS_LABEL } from '@/lib/events'
+import { createPostAction, updatePostAction, type FormState } from '@/app/archive/actions'
 import { toAttachmentPayload, type Department, type PickableFile } from '@/lib/post-view'
 import { ARCHIVE_BASE } from '@/lib/search-params'
+
+export type PostFormInitial = {
+  id: string
+  title: string
+  department: string
+  author: string
+  body: string
+  eventDate: string | null
+  files: PickableFile[]
+}
 
 type Props = {
   departments: Department[]
   files: PickableFile[]
+  /** 있으면 수정, 없으면 등록. */
+  initial?: PostFormInitial
 }
 
 const LABEL = 'text-xs font-medium text-zinc-600 mb-1.5 block'
 const FIELD =
   'w-full h-9 px-2.5 text-sm border border-zinc-200 rounded-md bg-white text-zinc-900 placeholder:text-zinc-300 focus:outline-none focus:border-zinc-400 transition-colors'
 
-export default function PostForm({ departments, files }: Props) {
+export default function PostForm({ departments, files, initial }: Props) {
+  const editing = Boolean(initial)
+
   const [state, formAction, pending] = useActionState<FormState, FormData>(
-    createPostAction,
+    editing ? updatePostAction : createPostAction,
     { error: null },
   )
 
-  const [selected, setSelected] = useState<PickableFile[]>([])
-  const [department, setDepartment] = useState('')
+  const [selected, setSelected] = useState<PickableFile[]>(initial?.files ?? [])
+  const [department, setDepartment] = useState(initial?.department ?? '')
   const [pickerOpen, setPickerOpen] = useState(false)
   const [filter, setFilter] = useState('')
+
+  // 저장소에서 사라진 첨부도 고를 수 있게 남겨 둔다. 목록에 없으면 수정하는
+  // 것만으로 첨부가 소리 없이 빠진다.
+  const pickable = useMemo(() => {
+    const extra = (initial?.files ?? []).filter(f => !files.some(x => x.id === f.id))
+    return [...files, ...extra]
+  }, [files, initial])
 
   function toggle(file: PickableFile) {
     setSelected(prev => {
@@ -41,7 +61,7 @@ export default function PostForm({ departments, files }: Props) {
   // 파일은 놓인 자리별로 묶어서 보여준다. 목록이 평평하면 어디 있는 파일인지 모른다.
   const grouped = useMemo(() => {
     const q = filter.trim().toLowerCase()
-    const visible = q ? files.filter(f => f.name.toLowerCase().includes(q)) : files
+    const visible = q ? pickable.filter(f => f.name.toLowerCase().includes(q)) : pickable
 
     const map = new Map<string, PickableFile[]>()
     for (const f of visible) {
@@ -50,10 +70,11 @@ export default function PostForm({ departments, files }: Props) {
       map.set(f.location, list)
     }
     return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0], 'ko'))
-  }, [files, filter])
+  }, [pickable, filter])
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
+      {initial && <input type="hidden" name="id" value={initial.id} />}
       <input type="hidden" name="files" value={JSON.stringify(toAttachmentPayload(selected))} />
 
       {state.error && (
@@ -69,10 +90,17 @@ export default function PostForm({ departments, files }: Props) {
         <label className={LABEL} htmlFor="title">
           제목 <span className="text-red-400">*</span>
         </label>
-        <input id="title" name="title" required className={FIELD} placeholder="예) 2026 여름성경학교 행사 자료" />
+        <input
+          id="title"
+          name="title"
+          required
+          defaultValue={initial?.title}
+          className={FIELD}
+          placeholder="예) 2026 여름성경학교 행사 자료"
+        />
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className={LABEL} htmlFor="department">
             부서 <span className="text-red-400">*</span>
@@ -97,23 +125,16 @@ export default function PostForm({ departments, files }: Props) {
         </div>
 
         <div>
-          <label className={LABEL} htmlFor="status">
-            상태
-          </label>
-          <select id="status" name="status" className={FIELD} defaultValue="planned">
-            {EVENT_STATUSES.map(s => (
-              <option key={s} value={s}>
-                {STATUS_LABEL[s]}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
           <label className={LABEL} htmlFor="event_date">
             날짜
           </label>
-          <input id="event_date" name="event_date" type="date" className={FIELD} />
+          <input
+            id="event_date"
+            name="event_date"
+            type="date"
+            defaultValue={initial?.eventDate ?? ''}
+            className={FIELD}
+          />
         </div>
       </div>
 
@@ -121,7 +142,14 @@ export default function PostForm({ departments, files }: Props) {
         <label className={LABEL} htmlFor="author">
           작성자 <span className="text-red-400">*</span>
         </label>
-        <input id="author" name="author" required className={FIELD} placeholder="이름" />
+        <input
+          id="author"
+          name="author"
+          required
+          defaultValue={initial?.author}
+          className={FIELD}
+          placeholder="이름"
+        />
       </div>
 
       <div>
@@ -132,6 +160,7 @@ export default function PostForm({ departments, files }: Props) {
           id="body"
           name="body"
           rows={8}
+          defaultValue={initial?.body}
           className="w-full px-2.5 py-2 text-sm border border-zinc-200 rounded-md bg-white text-zinc-900 placeholder:text-zinc-300 focus:outline-none focus:border-zinc-400 transition-colors resize-y"
           placeholder="자료 개요, 준비 사항, 결과 등을 자유롭게 적으세요."
         />
@@ -190,7 +219,7 @@ export default function PostForm({ departments, files }: Props) {
             <div className="max-h-72 overflow-y-auto">
               {grouped.length === 0 ? (
                 <p className="text-sm text-zinc-400 px-3 py-6 text-center">
-                  {files.length === 0
+                  {pickable.length === 0
                     ? '저장소에 아직 파일이 없습니다.'
                     : '이름이 맞는 파일이 없습니다.'}
                 </p>
@@ -229,7 +258,7 @@ export default function PostForm({ departments, files }: Props) {
 
       <div className="flex justify-end gap-2 pt-1">
         <Link
-          href={ARCHIVE_BASE}
+          href={initial ? `${ARCHIVE_BASE}/${initial.id}` : ARCHIVE_BASE}
           className="px-3 h-9 inline-flex items-center text-sm text-zinc-600 hover:bg-zinc-100 rounded-md transition-colors"
         >
           취소
@@ -239,7 +268,7 @@ export default function PostForm({ departments, files }: Props) {
           disabled={pending}
           className="px-4 h-9 inline-flex items-center bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white text-sm font-medium rounded-md transition-colors"
         >
-          {pending ? '등록하는 중…' : '등록'}
+          {pending ? '저장하는 중…' : editing ? '저장' : '등록'}
         </button>
       </div>
     </form>

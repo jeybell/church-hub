@@ -4,18 +4,49 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import {
   createEvent,
-  updateEventStatus,
-  EVENT_STATUSES,
-  type EventStatus,
+  updateEvent,
+  deleteEvent,
+  type AttachmentInput,
+  type EventInput,
 } from '@/lib/events'
 import { getDriveTree, listFileRevisions, type FileRevision } from '@/lib/drive'
-
-function asStatus(value: FormDataEntryValue | null): EventStatus {
-  const v = String(value ?? '')
-  return (EVENT_STATUSES as readonly string[]).includes(v) ? (v as EventStatus) : 'planned'
-}
+import { ARCHIVE_BASE } from '@/lib/search-params'
 
 export type FormState = { error: string | null }
+
+type Parsed = { ok: true; input: EventInput } | { ok: false; error: string }
+
+/** 폼이 보낸 값을 저장 가능한 모양으로 바꾼다. 등록과 수정이 같은 폼을 쓴다. */
+function parse(formData: FormData): Parsed {
+  const title = String(formData.get('title') ?? '').trim()
+  const department = String(formData.get('department') ?? '').trim()
+  const author = String(formData.get('author') ?? '').trim()
+
+  if (!title || !department || !author) {
+    return { ok: false, error: '제목, 부서, 작성자는 반드시 입력해야 합니다.' }
+  }
+
+  let files: AttachmentInput[]
+  try {
+    files = JSON.parse(String(formData.get('files') ?? '[]'))
+  } catch {
+    return { ok: false, error: '첨부 목록을 읽지 못했습니다. 다시 시도해 주세요.' }
+  }
+
+  const eventDate = String(formData.get('event_date') ?? '').trim()
+
+  return {
+    ok: true,
+    input: {
+      title,
+      department,
+      author,
+      body: String(formData.get('body') ?? ''),
+      event_date: eventDate || null,
+      files,
+    },
+  }
+}
 
 /**
  * 자료 등록.
@@ -27,50 +58,49 @@ export async function createPostAction(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const title = String(formData.get('title') ?? '').trim()
-  const department = String(formData.get('department') ?? '').trim()
-  const author = String(formData.get('author') ?? '').trim()
-
-  if (!title || !department || !author) {
-    return { error: '제목, 부서, 작성자는 반드시 입력해야 합니다.' }
-  }
-
-  let files: { drive_file_id: string; name: string; mime_type: string; size: number }[]
-  try {
-    files = JSON.parse(String(formData.get('files') ?? '[]'))
-  } catch {
-    return { error: '첨부 목록을 읽지 못했습니다. 다시 시도해 주세요.' }
-  }
-
-  const eventDate = String(formData.get('event_date') ?? '').trim()
+  const parsed = parse(formData)
+  if (!parsed.ok) return { error: parsed.error }
 
   let id: string
   try {
-    id = await createEvent({
-      title,
-      department,
-      author,
-      body: String(formData.get('body') ?? ''),
-      status: asStatus(formData.get('status')),
-      event_date: eventDate || null,
-      files,
-    })
+    id = await createEvent(parsed.input)
   } catch (e) {
     return { error: e instanceof Error ? e.message : String(e) }
   }
 
-  revalidatePath('/archive')
-  redirect(`/archive/${id}`)
+  revalidatePath(ARCHIVE_BASE)
+  redirect(`${ARCHIVE_BASE}/${id}`)
 }
 
-export async function updateStatusAction(formData: FormData) {
-  const id = String(formData.get('id') ?? '')
+export async function updatePostAction(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const id = String(formData.get('id') ?? '').trim()
+  if (!id) return { error: '수정할 자료를 찾지 못했습니다.' }
+
+  const parsed = parse(formData)
+  if (!parsed.ok) return { error: parsed.error }
+
+  try {
+    await updateEvent(id, parsed.input)
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : String(e) }
+  }
+
+  revalidatePath(ARCHIVE_BASE)
+  revalidatePath(`${ARCHIVE_BASE}/${id}`)
+  redirect(`${ARCHIVE_BASE}/${id}`)
+}
+
+export async function deletePostAction(formData: FormData) {
+  const id = String(formData.get('id') ?? '').trim()
   if (!id) throw new Error('자료 id 가 없습니다.')
 
-  await updateEventStatus(id, asStatus(formData.get('status')))
+  await deleteEvent(id)
 
-  revalidatePath('/archive')
-  revalidatePath(`/archive/${id}`)
+  revalidatePath(ARCHIVE_BASE)
+  redirect(ARCHIVE_BASE)
 }
 
 export type RevisionsResult =
