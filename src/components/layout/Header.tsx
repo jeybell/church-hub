@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import GlobalSearch from '@/components/search/GlobalSearch'
 
 type Props = {
@@ -34,6 +35,15 @@ export default function Header({ onSearch }: Props) {
 
       {/* User */}
       <div className="flex items-center gap-2 flex-shrink-0">
+        <Link
+          href="/archive"
+          className="h-8 px-2.5 inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 rounded-md transition-colors"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6h16.5M3.75 12h16.5m-16.5 6h16.5" />
+          </svg>
+          자료실
+        </Link>
         <button className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 text-sm font-semibold flex items-center justify-center hover:bg-indigo-200 transition-colors">
           김
         </button>
