@@ -39,6 +39,13 @@ export async function postgrest<T>(path: string, options: Options = {}): Promise
 
   if (!res.ok) {
     const detail = await res.text()
+    // PostgREST 는 테이블이 없을 때도 404 를 준다. 그대로 흘리면 "페이지 없음"으로
+    // 읽히기 쉬워서, 마이그레이션 미적용이라는 진짜 원인을 짚어준다.
+    if (res.status === 404) {
+      throw new Error(
+        `테이블을 찾을 수 없습니다. supabase/migrations 의 SQL 을 Supabase SQL Editor 에서 실행했는지 확인하세요. (${detail})`,
+      )
+    }
     throw new Error(`데이터 조회 실패 (${res.status}): ${detail}`)
   }
 

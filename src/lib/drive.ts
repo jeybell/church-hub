@@ -30,6 +30,7 @@ const FILE_FIELDS = [
   'size',
   'parents',
   'modifiedTime',
+  'version',
   'starred',
   'description',
   'appProperties',
@@ -44,6 +45,7 @@ type RawFile = {
   size?: string
   parents?: string[]
   modifiedTime: string
+  version?: string
   starred?: boolean
   description?: string
   appProperties?: Record<string, string>
@@ -116,6 +118,7 @@ function toFileItem(raw: RawFile, fallbackFolderId: string): FileItem {
       raw.owners?.[0]?.displayName ?? raw.lastModifyingUser?.displayName ?? '알 수 없음',
     updatedAt: raw.modifiedTime,
     starred: raw.starred ?? false,
+    version: raw.version ? Number(raw.version) : undefined,
     tags,
     description: raw.description,
   }
@@ -194,4 +197,46 @@ export async function listDriveFiles(): Promise<DriveFile[]> {
 
   const json = (await driveFetch('files', params, token)) as { files?: DriveFile[] }
   return json.files ?? []
+}
+
+export type FileRevision = {
+  id: string
+  /** 오래된 것부터 1, 2, 3 … 사용자가 보는 "버전" 번호 */
+  number: number
+  modifiedTime: string
+  size: number
+  author: string
+}
+
+/**
+ * 파일 하나의 변경 이력.
+ *
+ * 파일 메타데이터의 version 필드는 이름 변경 같은 수정에도 올라가서 사용자가
+ * 이해하는 "버전"과 어긋난다. 그래서 실제 리비전 목록을 받아 번호를 다시 매긴다.
+ * 글마다 부르면 호출 수가 폭발하므로 상세에서 펼칠 때만 쓴다.
+ */
+export async function listFileRevisions(fileId: string): Promise<FileRevision[]> {
+  const token = await getAccessToken()
+
+  const params = new URLSearchParams({
+    fields: 'revisions(id,modifiedTime,size,lastModifyingUser(displayName))',
+    pageSize: '1000',
+  })
+
+  const json = (await driveFetch(`files/${fileId}/revisions`, params, token)) as {
+    revisions?: {
+      id: string
+      modifiedTime: string
+      size?: string
+      lastModifyingUser?: { displayName?: string }
+    }[]
+  }
+
+  return (json.revisions ?? []).map((r, i) => ({
+    id: r.id,
+    number: i + 1,
+    modifiedTime: r.modifiedTime,
+    size: r.size ? Number(r.size) : 0,
+    author: r.lastModifyingUser?.displayName ?? '알 수 없음',
+  }))
 }
