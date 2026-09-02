@@ -9,6 +9,7 @@
     "lint": "eslint",
     "setup:drive": "node --env-file-if-exists=.env.local scripts/setup-drive.ts",
     "setup:folders": "node --env-file-if-exists=.env.local scripts/setup-folders.ts",
+    "seed:demo": "node --env-file-if-exists=.env.local scripts/seed-demo.ts",
     "test:drive": "node --env-file-if-exists=.env.local scripts/test-drive.ts",
     "redeploy": "node --env-file-if-exists=.env.local scripts/redeploy.ts",
     "typecheck": "next typegen && tsc --noEmit"
