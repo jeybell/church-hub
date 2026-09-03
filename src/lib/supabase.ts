@@ -49,7 +49,10 @@ export async function postgrest<T>(path: string, options: Options = {}): Promise
     throw new Error(`데이터 조회 실패 (${res.status}): ${detail}`)
   }
 
-  // DELETE 등 본문이 없는 응답
-  if (res.status === 204) return undefined as T
-  return (await res.json()) as T
+  // PostgREST 는 Prefer: return=representation 이 없는 PATCH/DELETE 에서
+  // 상태 코드 200 을 주면서 본문은 비워 둘 수 있다. 204 만 예외 처리하면
+  // 정상 수정 뒤 빈 문자열을 JSON 으로 읽다가 "Unexpected end" 가 난다.
+  const text = await res.text()
+  if (!text.trim()) return undefined as T
+  return JSON.parse(text) as T
 }
