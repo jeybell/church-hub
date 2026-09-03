@@ -38,7 +38,7 @@ export type PostVM = {
   title: string
   body: string
   department: string
-  /** 첨부가 놓인 카테고리 폴더 이름. 첨부가 없으면 비어 있다. */
+  /** 글에 저장된 카테고리. 없으면 첨부가 놓인 폴더에서 유추한다. */
   category: string | null
   author: string
   createdAt: string
@@ -109,7 +109,7 @@ export function toPostVM(event: EventPost, tree: DriveTree | null): PostVM {
     title: event.title,
     body: event.body,
     department: event.department,
-    category: deriveCategory(event, tree),
+    category: event.category ?? deriveCategory(event, tree),
     author: event.author,
     createdAt: event.created_at,
     updatedAt: event.updated_at,
@@ -120,9 +120,12 @@ export function toPostVM(event: EventPost, tree: DriveTree | null): PostVM {
 }
 
 /**
- * 카테고리는 아직 게시글에 저장하지 않는다. 대신 첨부가 어느 폴더에 들어있는지로
- * 판단한다. 자료를 "예배부 / 주보" 에 올렸다면 그 글의 카테고리는 주보다.
- * 첨부가 없거나 부서 폴더 바로 아래에 있으면 카테고리가 없다.
+ * 카테고리를 저장하기 전에 쓴 글을 위한 대비책.
+ *
+ * 첨부가 어느 폴더에 들어있는지로 유추한다. 자료를 "예배부 / 주보" 에 올렸다면
+ * 그 글의 카테고리는 주보다. 다만 한 글에 여러 폴더의 파일이 붙으면 첫 번째
+ * 것 하나로만 잡힌다 — 이 한계 때문에 category 컬럼을 따로 두게 됐다.
+ * 새 글은 글에 저장된 값을 쓰므로 여기까지 오지 않는다.
  */
 function deriveCategory(event: EventPost, tree: DriveTree | null): string | null {
   if (!tree) return null

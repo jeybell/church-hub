@@ -34,6 +34,7 @@ function parse(formData: FormData): Parsed {
   }
 
   const eventDate = String(formData.get('event_date') ?? '').trim()
+  const category = String(formData.get('category') ?? '').trim()
 
   return {
     ok: true,
@@ -41,6 +42,7 @@ function parse(formData: FormData): Parsed {
       title,
       department,
       author,
+      category: category || null,
       body: String(formData.get('body') ?? ''),
       event_date: eventDate || null,
       files,
