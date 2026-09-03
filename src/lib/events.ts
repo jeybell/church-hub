@@ -13,6 +13,8 @@ export type EventPost = {
   title: string
   body: string
   department: string
+  /** 드라이브 2단계 폴더 이름과 맞춘다. 예전 글은 비어 있을 수 있다. */
+  category: string | null
   event_date: string | null
   author: string
   created_at: string
@@ -24,7 +26,7 @@ export type EventPost = {
 // 행사에만 맞는 구분이라 주보·회의록 같은 자료에는 의미가 없었다.
 // 컬럼에 기본값이 있어 INSERT 에서 빼도 문제가 없다.
 const SELECT =
-  'id,title,body,department,event_date,author,created_at,updated_at,event_files(id,drive_file_id,name,mime_type,size)'
+  'id,title,body,department,category,event_date,author,created_at,updated_at,event_files(id,drive_file_id,name,mime_type,size)'
 
 export const SORT_KEYS = ['updated', 'created', 'title'] as const
 export type SortKey = (typeof SORT_KEYS)[number]
@@ -94,6 +96,7 @@ export type EventInput = {
   title: string
   body: string
   department: string
+  category: string | null
   event_date: string | null
   author: string
   files: AttachmentInput[]
@@ -120,6 +123,7 @@ export async function createEvent(input: EventInput): Promise<string> {
       title: input.title,
       body: input.body,
       department: input.department,
+      category: input.category,
       event_date: input.event_date,
       author: input.author,
     },
@@ -151,6 +155,7 @@ export async function updateEvent(id: string, input: EventInput): Promise<void> 
       title: input.title,
       body: input.body,
       department: input.department,
+      category: input.category,
       event_date: input.event_date,
       author: input.author,
     },

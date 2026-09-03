@@ -50,6 +50,7 @@ export default async function EditPostPage({ params }: PageProps<'/archive/[id]/
           id: post.id,
           title: post.title,
           department: post.department,
+          category: post.category,
           author: post.author,
           body: post.body,
           eventDate: post.eventDate,

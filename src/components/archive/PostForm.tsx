@@ -11,6 +11,7 @@ export type PostFormInitial = {
   id: string
   title: string
   department: string
+  category: string | null
   author: string
   body: string
   eventDate: string | null
@@ -38,6 +39,7 @@ export default function PostForm({ departments, files, initial }: Props) {
 
   const [selected, setSelected] = useState<PickableFile[]>(initial?.files ?? [])
   const [department, setDepartment] = useState(initial?.department ?? '')
+  const [category, setCategory] = useState(initial?.category ?? '')
   const [pickerOpen, setPickerOpen] = useState(false)
   const [filter, setFilter] = useState('')
 
@@ -48,12 +50,25 @@ export default function PostForm({ departments, files, initial }: Props) {
     return [...files, ...extra]
   }, [files, initial])
 
+  const categories = departments.find(d => d.name === department)?.categories ?? []
+
+  function changeDepartment(name: string) {
+    setDepartment(name)
+    // 부서가 바뀌면 그 부서에 없는 카테고리는 남겨둘 수 없다.
+    setCategory(prev =>
+      departments.find(d => d.name === name)?.categories.includes(prev) ? prev : '',
+    )
+  }
+
   function toggle(file: PickableFile) {
     setSelected(prev => {
       const has = prev.some(f => f.id === file.id)
       const next = has ? prev.filter(f => f.id !== file.id) : [...prev, file]
-      // 첫 파일을 고르면 그 파일이 놓인 부서를 미리 채워 준다.
-      if (!has && !department && file.department) setDepartment(file.department)
+      // 첫 파일을 고르면 그 파일이 놓인 자리를 미리 채워 준다.
+      if (!has && !department && file.department) {
+        setDepartment(file.department)
+        if (file.category) setCategory(file.category)
+      }
       return next
     })
   }
@@ -100,7 +115,7 @@ export default function PostForm({ departments, files, initial }: Props) {
         />
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div>
           <label className={LABEL} htmlFor="department">
             부서 <span className="text-red-400">*</span>
@@ -111,7 +126,7 @@ export default function PostForm({ departments, files, initial }: Props) {
             required
             className={FIELD}
             value={department}
-            onChange={e => setDepartment(e.target.value)}
+            onChange={e => changeDepartment(e.target.value)}
           >
             <option value="" disabled>
               부서 선택
@@ -119,6 +134,27 @@ export default function PostForm({ departments, files, initial }: Props) {
             {departments.map(d => (
               <option key={d.name} value={d.name}>
                 {d.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className={LABEL} htmlFor="category">
+            카테고리
+          </label>
+          <select
+            id="category"
+            name="category"
+            className={FIELD}
+            value={category}
+            onChange={e => setCategory(e.target.value)}
+            disabled={!department}
+          >
+            <option value="">{department ? '없음' : '부서를 먼저'}</option>
+            {categories.map(c => (
+              <option key={c} value={c}>
+                {c}
               </option>
             ))}
           </select>
