@@ -244,6 +244,55 @@ export function invalidateDriveTree(): void {
   treeCache = null
 }
 
+export type DriveUploadInput = {
+  name: string
+  mimeType: string
+  size: number
+  folderId: string
+  tags: string[]
+  description?: string
+}
+
+/**
+ * 브라우저가 Drive 로 직접 파일을 보낼 수 있는 resumable 세션을 만든다.
+ *
+ * 파일 본문을 Vercel Function 에 통과시키면 4.5MB 요청 제한에 걸린다.
+ * 서버는 자격 증명이 필요한 세션 생성만 맡고, 실제 바이트와 진행률은
+ * 브라우저와 Drive 사이에서 처리한다.
+ */
+export async function createDriveUploadSession(input: DriveUploadInput): Promise<string> {
+  const token = await getAccessToken()
+  const res = await fetch(
+    'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable',
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json; charset=UTF-8',
+        'X-Upload-Content-Type': input.mimeType,
+        'X-Upload-Content-Length': String(input.size),
+      },
+      body: JSON.stringify({
+        name: input.name,
+        parents: [input.folderId],
+        description: input.description || undefined,
+        appProperties: input.tags.length > 0 ? { tags: input.tags.join(',') } : undefined,
+      }),
+    },
+  )
+
+  if (!res.ok) {
+    throw new Error(`업로드 준비 실패 (${res.status}): ${await res.text()}`)
+  }
+
+  const location = res.headers.get('location')
+  if (!location) throw new Error('Drive 가 업로드 주소를 반환하지 않았습니다.')
+
+  // 세션 생성 뒤 목록을 다시 읽을 때 업로드된 파일이 곧바로 보이게 한다.
+  invalidateDriveTree()
+  return location
+}
+
 /** 연결 확인용 — 드라이브 전체에서 최근 파일 20건. */
 export async function listDriveFiles(): Promise<DriveFile[]> {
   const token = await getAccessToken()
