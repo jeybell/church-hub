@@ -49,7 +49,11 @@ export async function postgrest<T>(path: string, options: Options = {}): Promise
     throw new Error(`데이터 조회 실패 (${res.status}): ${detail}`)
   }
 
-  // DELETE 등 본문이 없는 응답
-  if (res.status === 204) return undefined as T
-  return (await res.json()) as T
+  // return=representation 을 요청하지 않으면 몸통이 비어 있다. 그런데 상태
+  // 코드는 메서드마다 다르다 — PATCH/DELETE 는 204, POST 는 201. 상태 코드로
+  // 나누면 케이스가 늘어날 때마다 놓치기 쉬우니, 몸통 자체가 비었는지로
+  // 판단한다 (POST 로 새 첨부를 넣을 때 이 경로를 안 타서 "Unexpected end
+  // of JSON input" 으로 죽었었다).
+  const text = await res.text()
+  return (text ? JSON.parse(text) : undefined) as T
 }
