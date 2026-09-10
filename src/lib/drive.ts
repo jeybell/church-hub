@@ -72,8 +72,24 @@ async function getAccessToken(): Promise<string> {
       grant_type: 'refresh_token',
     }),
   })
-  const json = (await res.json()) as { access_token?: string; expires_in?: number }
-  if (!res.ok || !json.access_token) throw new Error('토큰 갱신 실패')
+  const json = (await res.json()) as {
+    access_token?: string
+    expires_in?: number
+    error?: string
+    error_description?: string
+  }
+  if (!res.ok || !json.access_token) {
+    // 원인을 숨기면 "토큰 갱신 실패"만 보고 계정 문제인지 설정 문제인지
+    // 알 수가 없다. 구글이 준 에러를 그대로 붙인다 — 대개 invalid_grant 면
+    // refresh token 만료/취소, invalid_client 면 client id·secret 불일치다.
+    const reason = json.error_description ?? json.error ?? `HTTP ${res.status}`
+    throw new Error(
+      `토큰 갱신 실패: ${reason}` +
+        (json.error === 'invalid_grant'
+          ? ' — refresh token 이 만료되었거나 취소된 것으로 보입니다. npm run setup:drive 로 새로 발급한 뒤 Vercel 환경변수를 갱신하세요.'
+          : ''),
+    )
+  }
 
   const ttlSeconds = json.expires_in ?? 3600
   tokenCache = {
